@@ -72,7 +72,7 @@ def train(gpu, args):
         # calculate the batch size for each process in the node.
         batch_size=int(128),
         shuffle=(train_sampler is None),
-        num_workers=4,
+        num_workers=0,
         pin_memory=True,
         sampler=train_sampler
     )
