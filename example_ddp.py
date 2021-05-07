@@ -6,6 +6,9 @@ import torch.distributed as dist
 from argparse import ArgumentParser
 import os
 
+def cleanup():
+    dist.destroy_process_group()
+
 class AE(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
@@ -29,10 +32,11 @@ class AE(nn.Module):
 
 
 def train(gpu, args):
-    rank = 0
+    rank = gpu
+    print("GPU", gpu)
     # rank calculation for each process per gpu so that they can be
     # identified uniquely.
-    print('rank:',0)
+    print('rank:',rank)
     # Boilerplate code to initialise the parallel process.
     # It looks for ip-address and port which we have set as environ variable.
     # If you don't want to set it in the main then you can pass it by replacing
@@ -43,7 +47,6 @@ def train(gpu, args):
     dist.init_process_group(
         backend='gloo',
         init_method='env://',
-        world_size=args.world_size,
         rank=rank
     )
     torch.manual_seed(0)
@@ -124,6 +127,7 @@ def train(gpu, args):
                 'epoch': args.epochs,
             }
             torch.save(dict_model, './model.pth')
+    cleanup()
 
 
 if __name__ == "__main__":
@@ -144,7 +148,10 @@ if __name__ == "__main__":
     # add the ip address to the environment variable so it can be easily avialbale
     os.environ['MASTER_ADDR'] = args.ip_address
     print("ip_adress is", args.ip_address)
-    os.environ['MASTER_PORT'] = '8888'
+    import socket
+    print("Running on", socket.gethostname())
+
+    os.environ['MASTER_PORT'] = '6969'
     os.environ['WORLD_SIZE'] = str(args.world_size)
     # nprocs: number of process which is equal to args.ngpu here
-    mp.spawn(train, nprocs=1, args=[args])
+    mp.spawn(train, nprocs=args.world_size, args=[args])
